@@ -1,14 +1,56 @@
 // Each #kernel tells which function to compile; you can have many kernels
 #pragma kernel CSMain
 
-// Create a RenderTexture with enableRandomWrite flag and set it
-// with cs.SetTexture
+// Create a RenderTexture with enableRandomWrite flag and set it with cs.SetTexture
 RWTexture2D<float4> Result;
+float4x4 _CameraToWorld;
+float4x4 _CameraInverseProjection;
+Texture2D<float4> _SkyboxTexture;
+SamplerState sampler_SkyboxTexture; // TODO: What is this
+static const float PI = 3.1415926535897932384626433832795f;
+
+struct Ray {
+    float3 origin;
+    float3 direction;
+};
+
+Ray CreateRay(float3 origin, float3 direction) {
+    Ray ray;
+    ray.origin = origin;
+    ray.direction = direction;
+    return ray;
+}
+
+Ray CreateCameraRay(float2 uv) {
+    // Transform from camera origin to world space
+    float3 origin = mul(_CameraToWorld, float4(0.0f, 0.0f, 0.0f, 1.0f)).xyz;
+
+    // Invert the perspective projection of the view-space position
+    float3 direction = mul(_CameraInverseProjection, float4(uv, 0.0f, 1.0f)).xyz;
+    // Transform the direction from camera to world space and normalize
+    direction = mul(_CameraToWorld, float4(direction, 0.0f)).xyz;
+    direction = normalize(direction);
+
+    return CreateRay(origin, direction);
+}
 
 [numthreads(8,8,1)]
 void CSMain (uint3 id : SV_DispatchThreadID)
 {
-    // TODO: insert actual code here!
+    // Get the dimensions of the RenderTexture
+    uint width, height;
+    Result.GetDimensions(width, height);
 
-    Result[id.xy] = float4(id.x & id.y, (id.x & 15)/15.0, (id.y & 15)/15.0, 0.0);
+    // Transform pixel to [-1, 1] range
+    float2 uv = float2(id.xy + float2(0.5f, 0.5f)) / float2(width, height);
+
+    // Get a ray for the UVs
+    Ray ray = CreateCameraRay(uv);
+
+    // Sample the skybox and write it
+    // Convert from cartesian direction to spherical coordinates
+    float theta = acos(ray.direction.y) / -PI;
+    float phi = atan2(ray.direction.x, -ray.direction.z) / -PI * 0.5f;
+    // Map to texture
+    Result[id.xy] = _SkyboxTexture.SampleLevel(sampler_SkyboxTexture, float2(phi, theta) 0);
 }

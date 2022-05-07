@@ -5,8 +5,15 @@ using UnityEngine;
 public class RayTracingMaster : MonoBehaviour
 {
     public ComputeShader RayTracingShader;
+    public Texture SkyboxTexture;
 
     private RenderTexture _target;
+    private Camera _camera;
+
+    private void Awake()
+    {
+        _camera = GetComponent<Camera>();
+    }
 
     private void InitRenderTexture() {
         if (_target == null || _target.width != Screen.width || _target.height != Screen.height) {
@@ -25,6 +32,7 @@ public class RayTracingMaster : MonoBehaviour
     // Called automatically by Unity when camera finishes rendering (if attached to a camera)
     // Destination is the screen
     private void OnRenderImage(RenderTexture source, RenderTexture destination) {
+        SetShaderParamters();
         Render(destination);
     }
 
@@ -41,5 +49,11 @@ public class RayTracingMaster : MonoBehaviour
 
         // Blit the result texture to the screen
         Graphics.Blit(_target, destination);
+    }
+
+    private void SetShaderParamters() {
+        RayTracingShader.SetMatrix("_CameraToWorld", _camera.cameraToWorldMatrix);
+        RayTracingShader.SetMatrix("_CameraInverseProjection", _camera.projectionMatrix.inverse);
+        RayTracingShader.SetTexture(0, "_SkyboxTexture", SkyboxTexture);
     }
 }
