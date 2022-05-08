@@ -7,20 +7,17 @@ public class RayTracingMaster : MonoBehaviour
     public ComputeShader RayTracingShader;
     public Texture SkyboxTexture;
     public Light DirectionalLight;
-    public Vector2 SphereRadius = new Vector2(3.0f, 8.0f);
-    public uint SphereMax = 100;
-    public float SpherePlacementRadius = 100.0f;
 
     private ComputeBuffer _sphereBuffer;
     private RenderTexture _target;
     private Camera _camera;
     private uint _currentSample = 0;
     private Material _addMaterial;
+    private SceneGenerator _sceneGenerator;
 
 
     private void OnEnable() {
-        _currentSample = 0;
-        SetUpScene();
+        ResetScene();
     }
 
     private void OnDisable() {
@@ -29,55 +26,21 @@ public class RayTracingMaster : MonoBehaviour
         }
     }
 
-    private bool IsSphereIntersectingOthers(Sphere sphere, List<Sphere> spheres) {
-        foreach (Sphere other in spheres) {
-            float minDist = sphere.radius + other.radius;
-            if (Vector3.Distance(sphere.position, other.position) < minDist) {
-                return true;
-            }
-        }
-        return false;
-    }
 
     public void ResetScene() {
         if (_sphereBuffer != null) {
             _sphereBuffer.Release();
         }
         _currentSample = 0;
-        SetUpScene();
-    }
-
-    private void SetUpScene() {
-        List<Sphere> spheres = new List<Sphere>();
-
-        // Add random shperes
-        for (int i = 0; i < SphereMax; i++) {
-            Sphere sphere = new Sphere();
-
-            Vector2 randomPos = Random.insideUnitCircle * SpherePlacementRadius;
-            sphere.radius = SphereRadius.x + Mathf.PerlinNoise(randomPos.x, randomPos.y) * (SphereRadius.y - SphereRadius.x);
-            sphere.position = new Vector3(randomPos.x, sphere.radius, randomPos.y);
-
-            // Reject spheres that are intersection others
-            if (IsSphereIntersectingOthers(sphere, spheres)) continue;
-
-            // Albedo and specular colors
-            Color color = Random.ColorHSV();
-            bool metal = Random.value < 0.5f;
-            sphere.albedo = metal ? Vector3.zero : new Vector3(color.r, color.g, color.b);
-            sphere.specular = metal ? new Vector3(color.r, color.g, color.b) : Vector3.one * 0.04f;
-
-            spheres.Add(sphere);
-        }
-
-        // Assign to compute buffer
-        _sphereBuffer = new ComputeBuffer(spheres.Count, 40);
-        _sphereBuffer.SetData(spheres);
+        _sceneGenerator.SetUpScene();
+        _sphereBuffer = new ComputeBuffer(_sceneGenerator.spheres.Count, 40);
+        _sphereBuffer.SetData(_sceneGenerator.spheres);
     }
 
     private void Awake()
     {
         _camera = GetComponent<Camera>();
+        _sceneGenerator = GetComponent<SceneGenerator>();
     }
 
     private void Update() {
