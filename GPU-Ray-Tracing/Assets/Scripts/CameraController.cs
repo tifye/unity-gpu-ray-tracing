@@ -5,15 +5,22 @@ using UnityEngine;
 public class CameraController : MonoBehaviour
 {
     public float cameraMoveSpeed = 10.0f;
+    public float cameraRotateSpeed = 1000.0f;
 
     private Camera _camera;
-    private bool isMouseDragging = false;
-    private bool isTilting = false;
-    private Vector2 mouseDragOrigin;
-    private Vector2 mouseTiltOrigin;
+    private Vector2 rotation;
+    private float tiltAngle = 0;
+
+    private Vector2 GetInput() {
+        Vector2 input = new Vector2(
+            Input.GetAxis("Mouse X"),
+            Input.GetAxis("Mouse Y")
+        );
+        return input;
+    }
 
     private void TranslateTo(Vector3 direction) {
-        transform.Translate(direction * cameraMoveSpeed * Time.deltaTime);
+        transform.position += direction * cameraMoveSpeed * Time.deltaTime;
     }
     // Start is called before the first frame update
     void Awake()
@@ -31,39 +38,29 @@ public class CameraController : MonoBehaviour
             TranslateTo(-transform.forward);
         }
         if (Input.GetKey("a")) {
-            TranslateTo(-transform.right);
+            TranslateTo(Vector3.left);
         }
         if (Input.GetKey("d")) {
-            TranslateTo(transform.right);
+            TranslateTo(Vector3.right);
+        }
+        if (Input.GetKey("space")) {
+            TranslateTo(Vector3.up);
+        }
+        if (Input.GetKey("left shift")) {
+            TranslateTo(Vector3.down);
         }
 
-        if (Input.GetMouseButtonDown(0)) {
-            isMouseDragging = true;
-            mouseDragOrigin = Input.mousePosition;
-        }
-        if (Input.GetMouseButtonUp(0)) {
-            isMouseDragging = false;
-        }
-        if (isMouseDragging) {
-            Vector2 mouseDragEnd = Input.mousePosition;
-            Vector2 delta = mouseDragEnd - mouseDragOrigin;
-            transform.Rotate(Vector3.up, delta.x * Time.deltaTime * cameraMoveSpeed);
-            transform.Rotate(Vector3.right, -delta.y * Time.deltaTime * cameraMoveSpeed);
-            mouseDragOrigin = mouseDragEnd;
-        }
+        
 
-        if (Input.GetMouseButtonDown(1)) {
-            isTilting = true;
-            mouseTiltOrigin = Input.mousePosition;
+        if (Input.GetMouseButton(0)) {
+            Vector2 curAngularVelocity = GetInput() * cameraRotateSpeed;
+            rotation += curAngularVelocity * Time.deltaTime;
+            transform.localEulerAngles = new Vector3(-rotation.y, rotation.x, tiltAngle);
         }
-        if (Input.GetMouseButtonUp(1)) {
-            isTilting = false;
-        }
-        if (isTilting) {
-            Vector2 mouseTiltEnd = Input.mousePosition;
-            Vector2 delta = mouseTiltEnd - mouseTiltOrigin;
-            transform.Rotate(Vector3.forward, -delta.x * Time.deltaTime * cameraMoveSpeed);
-            mouseTiltOrigin = mouseTiltEnd;
+        if (Input.GetMouseButton(1)) {
+            Vector2 curAngularVelocity = GetInput() * cameraRotateSpeed;
+            tiltAngle += curAngularVelocity.x * Time.deltaTime;
+            transform.eulerAngles = new Vector3(-rotation.y, rotation.x, tiltAngle);
         }
 
 
