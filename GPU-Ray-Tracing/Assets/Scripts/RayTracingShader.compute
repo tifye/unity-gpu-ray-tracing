@@ -8,10 +8,12 @@ float4x4 _CameraInverseProjection;
 Texture2D<float4> _SkyboxTexture;
 SamplerState sampler_SkyboxTexture; // TODO: What is this
 static const float PI = 3.1415926535897932384626433832795f;
+float2 _PixelOffset;
 
 struct Ray {
     float3 origin;
     float3 direction;
+    float3 energy;
 };
 
 struct RayHit {
@@ -63,15 +65,26 @@ void IntersectSphere(Ray ray, inout RayHit bestHit, float4 sphere) {
 
 RayHit Trace(Ray ray) {
     RayHit bestHit = CreateRayHit();
-    IntersectSphere(ray, bestHit, float4(0.0f, 3.0f, 0.0f, 1.0f));
     IntersectGroundPlane(ray, bestHit);
+    IntersectSphere(ray, bestHit, float4(0.0f, 3.0f, 0.0f, 1.0f));
     return bestHit;
 }
 
-float Shade(inout Ray ray, RayHit hit) {
+float3 Shade(inout Ray ray, RayHit hit) {
     if (hit.distance < 1.#INF) {
-        return hit.normal * 0.5f + 0.5f;
+        float3 specular = float3(0.6f, 0.6f, 0.6f);
+
+        // Refkect the ray and multiply energy with speculat reflection
+        ray.origin = hit.position + hit.normal * 0.001f;
+        ray.direction = reflect(ray.direction, hit.normal);
+        ray.energy *= specular;
+
+        // Return nothing
+        return float3(0.0f, 0.0f, 0.0f);
     } else {
+        // Erase the ray's energy, the sky does not reflect anything
+        ray.energy = 0.0f;
+
         // If didn't hit anything, fallback to sampling the skybox
         float theta = acos(ray.direction.y) -PI;
         float phi = atan2(ray.direction.x, -ray.direction.z) / -PI * 0.5f;
@@ -83,6 +96,7 @@ Ray CreateRay(float3 origin, float3 direction) {
     Ray ray;
     ray.origin = origin;
     ray.direction = direction;
+    ray.energy = float3(1.0f, 1.0f, 1.0f);
     return ray;
 }
 
@@ -107,13 +121,18 @@ void CSMain (uint3 id : SV_DispatchThreadID)
     Result.GetDimensions(width, height);
 
     // Transform pixel to [-1, 1] range
-    float2 uv = float2(id.xy + float2(0.5f, 0.5f)) / float2(width, height);
+    float2 uv = float2(id.xy + _PixelOffset) / float2(width, height);
 
     // Get a ray for the UVs
     Ray ray = CreateCameraRay(uv);
 
     // Trace and shade
-    RayHit hit = Trace(ray);
-    float3 result = Shade(ray, hit);
-    Result[id.xy] = float4(result, 1.0f);
+    float3 result = float3(0.0f, 0.0f, 0.0f);
+    for (int i = 0; i < 8; i++) {
+        RayHit hit = Trace(ray);
+        result += ray.energy * Shade(ray, hit);
+
+        if (!any(ray.energy)) break;
+    }
+    Result[id.xy] = float4(result, 1);
 }
