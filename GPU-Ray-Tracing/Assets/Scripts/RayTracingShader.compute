@@ -66,7 +66,15 @@ void IntersectSphere(Ray ray, inout RayHit bestHit, float4 sphere) {
 RayHit Trace(Ray ray) {
     RayHit bestHit = CreateRayHit();
     IntersectGroundPlane(ray, bestHit);
-    IntersectSphere(ray, bestHit, float4(0.0f, 3.0f, 0.0f, 1.0f));
+    float spaceBetween = 1.0f;
+    float sphereRadius = 1.0f;
+    for (float x = 0; x < 15; x++)
+        for (float z = 0; z < 15; z++) {
+            float sx = x + x * (sphereRadius + spaceBetween);
+            float sz = z + z * (sphereRadius + spaceBetween);
+            float sy = sphereRadius + sx % 2;
+            IntersectSphere(ray, bestHit, float4(sx, sy, sz, sphereRadius));
+        }
     return bestHit;
 }
 
@@ -88,7 +96,7 @@ float3 Shade(inout Ray ray, RayHit hit) {
         // If didn't hit anything, fallback to sampling the skybox
         float theta = acos(ray.direction.y) -PI;
         float phi = atan2(ray.direction.x, -ray.direction.z) / -PI * 0.5f;
-        return _SkyboxTexture.SampleLevel(sampler_SkyboxTexture, float2(phi, theta), 0).xyz;
+        return _SkyboxTexture.SampleLevel(sampler_SkyboxTexture, float2(phi, theta), 0).xyz * 2.0f;
     }
 }
 
