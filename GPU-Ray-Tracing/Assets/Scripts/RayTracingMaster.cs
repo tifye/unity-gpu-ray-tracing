@@ -38,6 +38,15 @@ public class RayTracingMaster : MonoBehaviour
         }
         return false;
     }
+
+    public void ResetScene() {
+        if (_sphereBuffer != null) {
+            _sphereBuffer.Release();
+        }
+        _currentSample = 0;
+        SetUpScene();
+    }
+
     private void SetUpScene() {
         List<Sphere> spheres = new List<Sphere>();
 
@@ -45,8 +54,8 @@ public class RayTracingMaster : MonoBehaviour
         for (int i = 0; i < SphereMax; i++) {
             Sphere sphere = new Sphere();
 
-            sphere.radius = SphereRadius.x + Random.value * (SphereRadius.y - SphereRadius.x);
             Vector2 randomPos = Random.insideUnitCircle * SpherePlacementRadius;
+            sphere.radius = SphereRadius.x + Mathf.PerlinNoise(randomPos.x, randomPos.y) * (SphereRadius.y - SphereRadius.x);
             sphere.position = new Vector3(randomPos.x, sphere.radius, randomPos.y);
 
             // Reject spheres that are intersection others
