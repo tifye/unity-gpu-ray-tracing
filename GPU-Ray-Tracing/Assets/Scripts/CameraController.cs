@@ -38,10 +38,10 @@ public class CameraController : MonoBehaviour
             TranslateTo(-transform.forward);
         }
         if (Input.GetKey("a")) {
-            TranslateTo(Vector3.left);
+            TranslateTo(-transform.right);
         }
         if (Input.GetKey("d")) {
-            TranslateTo(Vector3.right);
+            TranslateTo(transform.right);
         }
         if (Input.GetKey("space")) {
             TranslateTo(Vector3.up);

@@ -6,11 +6,65 @@ public class RayTracingMaster : MonoBehaviour
 {
     public ComputeShader RayTracingShader;
     public Texture SkyboxTexture;
+    public Light DirectionalLight;
+    public Vector2 SphereRadius = new Vector2(3.0f, 8.0f);
+    public uint SphereMax = 100;
+    public float SpherePlacementRadius = 100.0f;
 
+    private ComputeBuffer _sphereBuffer;
     private RenderTexture _target;
     private Camera _camera;
     private uint _currentSample = 0;
     private Material _addMaterial;
+
+
+    private void OnEnable() {
+        _currentSample = 0;
+        SetUpScene();
+    }
+
+    private void OnDisable() {
+        if (_sphereBuffer != null) {
+            _sphereBuffer.Release();
+        }
+    }
+
+    private bool IsSphereIntersectingOthers(Sphere sphere, List<Sphere> spheres) {
+        foreach (Sphere other in spheres) {
+            float minDist = sphere.radius + other.radius;
+            if (Vector3.Distance(sphere.position, other.position) < minDist) {
+                return true;
+            }
+        }
+        return false;
+    }
+    private void SetUpScene() {
+        List<Sphere> spheres = new List<Sphere>();
+
+        // Add random shperes
+        for (int i = 0; i < SphereMax; i++) {
+            Sphere sphere = new Sphere();
+
+            sphere.radius = SphereRadius.x + Random.value * (SphereRadius.y - SphereRadius.x);
+            Vector2 randomPos = Random.insideUnitCircle * SpherePlacementRadius;
+            sphere.position = new Vector3(randomPos.x, sphere.radius, randomPos.y);
+
+            // Reject spheres that are intersection others
+            if (IsSphereIntersectingOthers(sphere, spheres)) continue;
+
+            // Albedo and specular colors
+            Color color = Random.ColorHSV();
+            bool metal = Random.value < 0.5f;
+            sphere.albedo = metal ? Vector3.zero : new Vector3(color.r, color.g, color.b);
+            sphere.specular = metal ? new Vector3(color.r, color.g, color.b) : Vector3.one * 0.04f;
+
+            spheres.Add(sphere);
+        }
+
+        // Assign to compute buffer
+        _sphereBuffer = new ComputeBuffer(spheres.Count, 40);
+        _sphereBuffer.SetData(spheres);
+    }
 
     private void Awake()
     {
@@ -18,10 +72,12 @@ public class RayTracingMaster : MonoBehaviour
     }
 
     private void Update() {
-        if (transform.hasChanged) {
+        if (transform.hasChanged || DirectionalLight.transform.hasChanged) {
             _currentSample = 0;
             transform.hasChanged = false;
+            DirectionalLight.transform.hasChanged = false;
         }
+
     }
 
     private void InitRenderTexture() {
@@ -71,5 +127,9 @@ public class RayTracingMaster : MonoBehaviour
         RayTracingShader.SetMatrix("_CameraInverseProjection", _camera.projectionMatrix.inverse);
         RayTracingShader.SetTexture(0, "_SkyboxTexture", SkyboxTexture);
         RayTracingShader.SetVector("_PixelOffset", new Vector2(Random.value, Random.value));
+        RayTracingShader.SetBuffer(0, "_Spheres", _sphereBuffer);
+
+        Vector3 l = DirectionalLight.transform.forward;
+        RayTracingShader.SetVector("_DirectionalLight", new Vector4(l.x, l.y, l.z, DirectionalLight.intensity));
     }
 }
