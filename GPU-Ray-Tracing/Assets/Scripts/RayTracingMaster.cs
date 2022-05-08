@@ -6,7 +6,6 @@ public class RayTracingMaster : MonoBehaviour
 {
     public ComputeShader RayTracingShader;
     public Texture SkyboxTexture;
-    public float cameraMoveSpeed = 1.0f;
 
     private RenderTexture _target;
     private Camera _camera;
@@ -18,27 +17,10 @@ public class RayTracingMaster : MonoBehaviour
         _camera = GetComponent<Camera>();
     }
 
-    private void TranslateTo(Vector3 direction) {
-        transform.Translate(direction * cameraMoveSpeed * Time.deltaTime);
-    }
-
     private void Update() {
         if (transform.hasChanged) {
             _currentSample = 0;
             transform.hasChanged = false;
-        }
-
-        if (Input.GetKey("w")) {
-            TranslateTo(Vector3.forward);
-        }
-        if (Input.GetKey("s")) {
-            TranslateTo(Vector3.back);
-        }
-        if (Input.GetKey("a")) {
-            TranslateTo(Vector3.left);
-        }
-        if (Input.GetKey("d")) {
-            TranslateTo(Vector3.right);
         }
     }
 
